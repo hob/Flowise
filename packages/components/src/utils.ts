@@ -24,24 +24,26 @@ export const notEmptyRegex = '(.|\\s)*\\S(.|\\s)*' //return true if string is no
 export const FLOWISE_CHATID = 'flowise_chatId'
 
 let secretsManagerClient: SecretsManagerClient | null = null
-const USE_AWS_SECRETS_MANAGER = process.env.SECRETKEY_STORAGE_TYPE === 'aws'
-if (USE_AWS_SECRETS_MANAGER) {
-    const region = process.env.SECRETKEY_AWS_REGION || 'us-east-1' // Default region if not provided
-    const accessKeyId = process.env.SECRETKEY_AWS_ACCESS_KEY
-    const secretAccessKey = process.env.SECRETKEY_AWS_SECRET_KEY
+export function getSecretsManagerClient(): SecretsManagerClient | null {
+    const USE_AWS_SECRETS_MANAGER = process.env.SECRETKEY_STORAGE_TYPE === 'aws'
+    if (secretsManagerClient == null && USE_AWS_SECRETS_MANAGER) {
+        const region = process.env.SECRETKEY_AWS_REGION || 'us-east-1' // Default region if not provided
+        const accessKeyId = process.env.SECRETKEY_AWS_ACCESS_KEY
+        const secretAccessKey = process.env.SECRETKEY_AWS_SECRET_KEY
 
-    const secretManagerConfig: SecretsManagerClientConfig = {
-        region: region
-    }
-
-    if (accessKeyId && secretAccessKey) {
-        secretManagerConfig.credentials = {
-            accessKeyId,
-            secretAccessKey
+        const secretManagerConfig: SecretsManagerClientConfig = {
+            region: region
         }
-    }
 
-    secretsManagerClient = new SecretsManagerClient(secretManagerConfig)
+        if (accessKeyId && secretAccessKey) {
+            secretManagerConfig.credentials = {
+                accessKeyId,
+                secretAccessKey
+            }
+        }
+        secretsManagerClient = new SecretsManagerClient(secretManagerConfig)
+    }
+    return secretsManagerClient
 }
 
 /*
@@ -546,7 +548,8 @@ const getEncryptionKey = async (): Promise<string> => {
         return process.env.FLOWISE_SECRETKEY_OVERWRITE
     }
     try {
-        if (USE_AWS_SECRETS_MANAGER && secretsManagerClient) {
+        // secretsManagerClient will be null if AWS Secrets Manager is not configured
+        if (secretsManagerClient) {
             const secretId = process.env.SECRETKEY_AWS_NAME || 'FlowiseEncryptionKey'
             const command = new GetSecretValueCommand({ SecretId: secretId })
             const response = await secretsManagerClient.send(command)
@@ -571,7 +574,8 @@ const getEncryptionKey = async (): Promise<string> => {
 const decryptCredentialData = async (encryptedData: string): Promise<ICommonObject> => {
     let decryptedDataStr: string
 
-    if (USE_AWS_SECRETS_MANAGER && secretsManagerClient) {
+    // secretsManagerClient will be null if AWS Secrets Manager is not configured
+    if (secretsManagerClient) {
         try {
             if (encryptedData.startsWith('FlowiseCredential_')) {
                 const command = new GetSecretValueCommand({ SecretId: encryptedData })

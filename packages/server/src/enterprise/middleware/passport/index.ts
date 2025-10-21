@@ -22,6 +22,8 @@ import { WorkspaceUserService } from '../../services/workspace-user.service'
 import { decryptToken, encryptToken, generateSafeCopy } from '../../utils/tempTokenUtils'
 import { getAuthStrategy } from './AuthStrategy'
 import { initializeDBClientAndStore, initializeRedisClientAndStore } from './SessionPersistance'
+import { getSessionSecret, isSessionSecretSecure, storePreviousSessionSecret } from '../../../utils/sessionSecretManager'
+import { sessionMigrationMiddleware, createSessionMigrationStore } from './sessionMigration'
 import { v4 as uuidv4 } from 'uuid'
 
 const localStrategy = require('passport-local').Strategy
@@ -41,9 +43,24 @@ const jwtOptions = {
 }
 
 const _initializePassportMiddleware = async (app: express.Application) => {
+    // Get secure session secret
+    const sessionSecret = await getSessionSecret()
+
+    // Validate that we have a secure session secret
+    if (!isSessionSecretSecure(sessionSecret)) {
+        throw new Error(
+            `EXPRESS_SESSION_SECRET must be at least 32 characters. Please set EXPRESS_SESSION_SECRET environment variable or ensure AWS Secrets Manager is properly configured.
+            This may happen if you are upgrading, and had not previously set the EXPRESS_SESSION_SECRET variable.  Recent versions of Flowise now require a secure session secret.`
+        )
+    }
+
+    // Store the current secret as previous for migration purposes
+    // This should be done before the first request to ensure smooth migration
+    await storePreviousSessionSecret(sessionSecret)
+
     // Configure session middleware
     let options: any = {
-        secret: process.env.EXPRESS_SESSION_SECRET || 'flowise',
+        secret: sessionSecret,
         resave: false,
         saveUninitialized: false,
         cookie: {
@@ -58,17 +75,23 @@ const _initializePassportMiddleware = async (app: express.Application) => {
         // configure session store based on the mode
         if (process.env.MODE === 'queue') {
             const redisStore = initializeRedisClientAndStore()
-            options.store = redisStore as RedisStore
+            // Wrap the store with migration capabilities
+            const migrationStore = await createSessionMigrationStore(redisStore)
+            options.store = migrationStore as any
         } else {
             // for the database store, choose store basis the DB configuration from .env
             const dbSessionStore = initializeDBClientAndStore()
             if (dbSessionStore) {
-                options.store = dbSessionStore
+                // Wrap the store with migration capabilities
+                const migrationStore = await createSessionMigrationStore(dbSessionStore)
+                options.store = migrationStore as any
             }
         }
     }
 
     app.use(session(options))
+    // Add session migration middleware before passport
+    app.use(sessionMigrationMiddleware)
     app.use(passport.initialize())
     app.use(passport.session())
 

@@ -1,28 +1,38 @@
-// Import the built-in 'crypto' module for generating
-// cryptographically secure random bytes.
-const crypto = require('crypto');
+const crypto = require('crypto')
+const { generateSessionSecret } = require('../src/utils/sessionSecretManager')
 
 // The main function to generate the key.
 function generateKey() {
     try {
-        // Generate 32 cryptographically secure random bytes.
-        // The 'randomBytes' method returns a Buffer object.
-        const key = crypto.randomBytes(32);
-
-        // Convert the Buffer object to a hexadecimal string representation
-        // for easy viewing and logging.
-        const hexKey = key.toString('hex');
-
-        // Log the generated key.
-        console.log(`Generated 32-byte secret: ${hexKey}`);
-
+        const secret = generateSessionSecret()
+        // Log the generated key with usage instructions.
+        console.log('='.repeat(60))
+        console.log('FLOWISE SESSION SECRET GENERATOR')
+        console.log('='.repeat(60))
+        console.log(`Generated 32-byte session secret: ${secret}`)
+        console.log('')
+        console.log('USAGE:')
+        console.log('1. Set as environment variable:')
+        console.log(`   export EXPRESS_SESSION_SECRET=${secret}`)
+        console.log('')
+        console.log('2. Or add to your .env file:')
+        console.log(`   EXPRESS_SESSION_SECRET=${secret}`)
+        console.log('')
+        console.log('3. Or use with Docker:')
+        console.log(`   docker run -e EXPRESS_SESSION_SECRET=${secret} flowiseai/flowise`)
+        console.log('')
+        console.log('SECURITY NOTES:')
+        console.log('- Keep this secret secure and never commit it to version control')
+        console.log('- Use different secrets for different environments')
+        console.log('- Rotate secrets regularly (every 90 days recommended)')
+        console.log('='.repeat(60))
     } catch (err) {
         // If an error occurs during the generation process,
         // print an error message and exit.
-        console.error('Error generating secret:', err);
-        process.exit(1);
+        console.error('Error generating secret:', err)
+        process.exit(1)
     }
 }
 
 // Call the function to run the script.
-generateKey();
+generateKey()

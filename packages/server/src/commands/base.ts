@@ -56,6 +56,7 @@ export abstract class BaseCommand extends Command {
         SECRETKEY_AWS_SECRET_KEY: Flags.string(),
         SECRETKEY_AWS_REGION: Flags.string(),
         SECRETKEY_AWS_NAME: Flags.string(),
+        SECRETKEY_AWS_SESSION_SECRET: Flags.string(),
         DISABLED_NODES: Flags.string(),
         MODE: Flags.string(),
         WORKER_CONCURRENCY: Flags.string(),
@@ -138,6 +139,7 @@ export abstract class BaseCommand extends Command {
         if (flags.SECRETKEY_AWS_SECRET_KEY) process.env.SECRETKEY_AWS_SECRET_KEY = flags.SECRETKEY_AWS_SECRET_KEY
         if (flags.SECRETKEY_AWS_REGION) process.env.SECRETKEY_AWS_REGION = flags.SECRETKEY_AWS_REGION
         if (flags.SECRETKEY_AWS_NAME) process.env.SECRETKEY_AWS_NAME = flags.SECRETKEY_AWS_NAME
+        if (flags.SECRETKEY_AWS_SESSION_SECRET) process.env.SECRETKEY_AWS_SESSION_SECRET = flags.SECRETKEY_AWS_SESSION_SECRET
 
         // Logs
         if (flags.LOG_PATH) process.env.LOG_PATH = flags.LOG_PATH
